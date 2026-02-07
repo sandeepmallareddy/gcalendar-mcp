@@ -40,7 +40,7 @@ Before you begin, ensure you have:
 
 2. **A Google Account** with Google Calendar enabled
 
-3. **Claude Code** installed (for MCP integration)
+3. **Claude Code** installed and available in your PATH
 
 ## Installation
 
@@ -79,6 +79,13 @@ npm run build
 
 You should see a `build/` folder created with the compiled files.
 
+### Step 4: Verify the Build
+
+```bash
+# Check that the built file exists
+ls -la build/index.js
+```
+
 ## Configuration
 
 ### Step 1: Set Up Google OAuth Credentials
@@ -115,7 +122,7 @@ Google requires authentication to access your calendar. Here's how to set it up:
    - Add `http://localhost:3000/oauth2callback` to "Authorized redirect URIs"
    - Click "Save"
 
-### Step 2: Create Environment File
+### Step 2: Create Environment File (Optional)
 
 Create a file named `.env` in the `gcalendar-mcp` folder with your credentials:
 
@@ -150,70 +157,43 @@ chmod 600 .env
 
 ## Claude Code Setup
 
-### Step 1: Find Your Claude Code Configuration File
+### Add the MCP Server Using CLI
 
-The location depends on your operating system:
-
-| OS | Path |
-|---|------|
-| macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Linux | `~/.config/Claude/claude_desktop_config.json` |
-| Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
-
-Open a terminal and run:
+Claude Code provides a built-in command to add MCP servers. Run this in your terminal:
 
 ```bash
-# macOS/Linux:
-cat ~/.config/Claude/claude_desktop_config.json
-
-# If the file doesn't exist, you'll see an error - that's okay!
+# Add the Google Calendar MCP server
+claude mcp add gcalendar --transport stdio \
+  --env GOOGLE_CLIENT_ID="YOUR_CLIENT_ID.apps.googleusercontent.com" \
+  --env GOOGLE_CLIENT_SECRET="YOUR_CLIENT_SECRET" \
+  --env GOOGLE_REDIRECT_URI="http://localhost:3000/oauth2callback" \
+  -- node /PATH/TO/YOUR/gcalendar-mcp/build/index.js
 ```
 
-### Step 2: Edit the Configuration File
+**Important**: Replace the following:
+- `YOUR_CLIENT_ID` - Your Google OAuth Client ID
+- `YOUR_CLIENT_SECRET` - Your Google OAuth Client Secret
+- `/PATH/TO/YOUR/gcalendar-mcp/` - The actual path to your gcalendar-mcp folder
 
-Add the gcalendar-mcp server to your Claude configuration:
+**Example** (adjust paths for your system):
+```bash
+claude mcp add gcalendar --transport stdio \
+  --env GOOGLE_CLIENT_ID="398036798396-xxx.apps.googleusercontent.com" \
+  --env GOOGLE_CLIENT_SECRET="GOCSPX-xxx" \
+  --env GOOGLE_REDIRECT_URI="http://localhost:3000/oauth2callback" \
+  -- node /home/username/projects/gcalendar-mcp/build/index.js
+```
 
-**If the file doesn't exist yet, create it:**
+### Verify Installation
 
 ```bash
-# macOS/Linux:
-mkdir -p ~/.config/Claude
-nano ~/.config/Claude/claude_desktop_config.json
+# List all configured MCP servers
+claude mcp list
+
+# You should see gcalendar in the list
 ```
 
-**If it exists, add the `mcpServers` section:**
-
-```json
-{
-  "mcpServers": {
-    "gcalendar": {
-      "command": "node",
-      "args": ["/FULL/PATH/TO/YOUR/gcalendar-mcp/build/index.js"],
-      "env": {
-        "GOOGLE_CLIENT_ID": "YOUR_CLIENT_ID.apps.googleusercontent.com",
-        "GOOGLE_CLIENT_SECRET": "YOUR_CLIENT_SECRET",
-        "GOOGLE_REDIRECT_URI": "http://localhost:3000/oauth2callback"
-      }
-    }
-  }
-}
-```
-
-**Important notes:**
-
-1. **Replace `/FULL/PATH/TO/YOUR/`** with the actual path to your gcalendar-mcp folder
-   - Example macOS: `/Users/yourname/projects/gcalendar-mcp/build/index.js`
-   - Example Linux: `/home/yourname/projects/gcalendar-mcp/build/index.js`
-
-2. **Copy the credentials** from your `.env` file into the `env` section
-
-3. **Keep the quotes** around keys and values (it's JSON format)
-
-### Step 3: Restart Claude Code
-
-Close and reopen Claude Code to load the new MCP server.
-
-### Step 4: Complete Authentication
+### Complete Authentication
 
 The first time you use a calendar tool:
 
@@ -222,11 +202,50 @@ The first time you use a calendar tool:
 3. Sign in with your Google account
 4. Review the permissions and click "Continue"
 5. You'll be redirected to a localhost page
-6. If using Claude Code Desktop, authentication completes automatically
-7. Otherwise, copy the code from the URL and provide it when prompted
+6. Copy the code from the URL and provide it when prompted
 
 **Your tokens are stored securely at:**
 - macOS/Linux: `~/.config/gcalendar-mcp/tokens.json`
+
+### Managing the Server
+
+```bash
+# List all MCP servers
+claude mcp list
+
+# Get details about gcalendar server
+claude mcp get gcalendar
+
+# Remove the gcalendar server
+claude mcp remove gcalendar
+
+# Restart Claude Code to reload the server
+```
+
+### Configuration Storage
+
+The MCP server configuration is stored in `~/.claude.json`. After adding the server, you can view it:
+
+```bash
+cat ~/.claude.json
+```
+
+The configuration will look like:
+```json
+{
+  "mcpServers": {
+    "gcalendar": {
+      "command": "node",
+      "args": ["/path/to/gcalendar-mcp/build/index.js"],
+      "env": {
+        "GOOGLE_CLIENT_ID": "...",
+        "GOOGLE_CLIENT_SECRET": "...",
+        "GOOGLE_REDIRECT_URI": "..."
+      }
+    }
+  }
+}
+```
 
 ## Usage Examples
 
@@ -358,16 +377,15 @@ npm run check
 
 ## Troubleshooting
 
-### "Command not found: node"
+### "Command not found: claude"
 
-Node.js is not installed or not in your PATH.
+Claude Code CLI is not installed or not in your PATH.
 
 ```bash
-# Check if Node is installed
-which node   # macOS/Linux)
-where node   # Windows)
+# Check if Claude is installed
+which claude   # macOS/Linux)
 
-# If not installed, download from https://nodejs.org
+# If not installed, download from https://claude.com/claude-code
 ```
 
 ### Authentication fails
@@ -383,10 +401,15 @@ where node   # Windows)
 ### Tools not appearing in Claude
 
 1. Restart Claude Code completely
-2. Check MCP logs at:
-   - macOS: `~/Library/Logs/Claude/mcp-server-gcalendar.log`
-   - Linux: `~/.config/Claude/mcp-server-gcalendar.log`
-3. Verify the server builds successfully:
+2. Verify the server is listed:
+   ```bash
+   claude mcp list
+   ```
+3. Check the server details:
+   ```bash
+   claude mcp get gcalendar
+   ```
+4. Verify the server builds successfully:
    ```bash
    cd gcalendar-mcp
    npm run build
@@ -409,6 +432,17 @@ Tokens refresh automatically. If you see persistent errors:
 ```bash
 rm ~/.config/gcalendar-mcp/tokens.json
 # Re-authenticate through Claude
+```
+
+### MCP server not starting
+
+Check the server configuration:
+```bash
+# View full MCP configuration
+cat ~/.claude.json
+
+# Verify the path to your build file exists
+ls -la /path/to/gcalendar-mcp/build/index.js
 ```
 
 ## License
