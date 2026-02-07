@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "dev": "tsc --watch --project tsconfig.json",
     "lint": "eslint src/**/*.ts tests/**/*.ts",
     "format": "prettier --write src/**/*.ts tests/**/*.ts",
