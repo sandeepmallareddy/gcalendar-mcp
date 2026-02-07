@@ -123,7 +123,7 @@ async function exchangeCodeForTokens(oauth2Client: OAuth2Client, code: string): 
 /**
  * Create HTTP server to handle OAuth callback
  */
-function createServer(oauth2Client: OAuth2Client): Promise<string> {
+function createServer(_oauth2Client: OAuth2Client): Promise<string> {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       const url = new URL(req.url || '', `http://${req.headers.host}`);
