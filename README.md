@@ -1,4 +1,8 @@
 ![CI](https://github.com/sandeepmallareddy/gcalendar-mcp/actions/workflows/ci.yml/badge.svg)
+![npm](https://img.shields.io/npm/v/gcalendar-mcp)
+![npm](https://img.shields.io/npm/dm/gcalendar-mcp)
+![npm](https://img.shields.io/npm/license/gcalendar-mcp)
+![Node](https://img.shields.io/node/v/gcalendar-mcp)
 
 # Google Calendar MCP Server
 
