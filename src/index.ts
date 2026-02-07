@@ -53,6 +53,18 @@ const oauth2Client = new OAuth2Client(
   OAUTH_CONFIG.redirectUri
 );
 
+// Listen for token refresh events and save new tokens automatically
+oauth2Client.on('tokens', async (tokens) => {
+  if (tokens.refresh_token) {
+    // Preserve the refresh token in credentials
+    oauth2Client.setCredentials({ refresh_token: tokens.refresh_token });
+  }
+  const tokenPath = await getTokenPath();
+  const credentials = oauth2Client.credentials;
+  await fs.writeFile(tokenPath, JSON.stringify(credentials, null, 2));
+  console.error('Tokens refreshed and saved to', tokenPath);
+});
+
 // Create MCP server
 const server = new Server(
   {
@@ -67,6 +79,19 @@ const server = new Server(
 );
 
 /**
+ * Check if we have valid authenticated credentials
+ */
+async function isAuthenticated(): Promise<boolean> {
+  try {
+    const tokenPath = await getTokenPath();
+    const tokens = JSON.parse(await fs.readFile(tokenPath, 'utf-8'));
+    return !!(tokens && tokens.refresh_token);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get or create authenticated calendar client
  */
 async function getCalendar() {
@@ -75,7 +100,7 @@ async function getCalendar() {
     const tokens = JSON.parse(await fs.readFile(tokenPath, 'utf-8'));
     oauth2Client.setCredentials(tokens);
   } catch {
-    // No cached tokens
+    // No cached tokens - will fail on API call
   }
   return google.calendar({ version: 'v3', auth: oauth2Client });
 }
@@ -308,7 +333,17 @@ const tools = [
   },
   {
     name: 'auth_status',
-    description: 'Check auth status and get auth URL.',
+    description: 'Check authentication status and get auth URL if needed.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'reauth',
+    description: 'Delete stored tokens and generate new auth URL for re-authentication.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'revoke_auth',
+    description: 'Revoke tokens with Google and delete local tokens, then get new auth URL.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -449,8 +484,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }] };
       }
       case 'auth_status': {
+        const tokenPath = await getTokenPath();
+        try {
+          const tokens = JSON.parse(await fs.readFile(tokenPath, 'utf-8'));
+          if (tokens.refresh_token) {
+            const expiry = tokens.expiry_date ? new Date(Number(tokens.expiry_date)).toLocaleString() : 'unknown';
+            return { content: [{ type: 'text', text: `Authenticated. Token expires: ${expiry}` }] };
+          }
+        } catch {
+          // No tokens file
+        }
         const url = await getAuthUrl();
-        return { content: [{ type: 'text', text: `Not authenticated. Visit:\n${url}\n\nThen use handle_oauth_callback with the code.` }] };
+        return { content: [{ type: 'text', text: `Not authenticated. Visit:\n${url}` }] };
+      }
+      case 'reauth': {
+        const tokenPath = await getTokenPath();
+        try {
+          await fs.unlink(tokenPath);
+        } catch {
+          // Ignore if file doesn't exist
+        }
+        const url = await getAuthUrl();
+        return { content: [{ type: 'text', text: `Tokens deleted. Visit to re-authenticate:\n${url}` }] };
+      }
+      case 'revoke_auth': {
+        const tokenPath = await getTokenPath();
+        try {
+          const tokens = JSON.parse(await fs.readFile(tokenPath, 'utf-8'));
+          if (tokens.refresh_token) {
+            await oauth2Client.revokeToken(tokens.refresh_token);
+          } else if (tokens.access_token) {
+            await oauth2Client.revokeToken(tokens.access_token);
+          }
+        } catch {
+          // Ignore errors from revoke
+        }
+        try {
+          await fs.unlink(tokenPath);
+        } catch {
+          // Ignore if file doesn't exist
+        }
+        const url = await getAuthUrl();
+        return { content: [{ type: 'text', text: `Tokens revoked and deleted. Visit to re-authenticate:\n${url}` }] };
       }
       case 'handle_oauth_callback': {
         await handleAuthCallback(args?.code as string);
