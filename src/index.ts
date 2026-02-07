@@ -484,15 +484,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }] };
       }
       case 'auth_status': {
-        const tokenPath = await getTokenPath();
-        try {
+        if (await isAuthenticated()) {
+          const tokenPath = await getTokenPath();
           const tokens = JSON.parse(await fs.readFile(tokenPath, 'utf-8'));
-          if (tokens.refresh_token) {
-            const expiry = tokens.expiry_date ? new Date(Number(tokens.expiry_date)).toLocaleString() : 'unknown';
-            return { content: [{ type: 'text', text: `Authenticated. Token expires: ${expiry}` }] };
-          }
-        } catch {
-          // No tokens file
+          const expiry = tokens.expiry_date ? new Date(Number(tokens.expiry_date)).toLocaleString() : 'unknown';
+          return { content: [{ type: 'text', text: `Authenticated. Token expires: ${expiry}` }] };
         }
         const url = await getAuthUrl();
         return { content: [{ type: 'text', text: `Not authenticated. Visit:\n${url}` }] };
