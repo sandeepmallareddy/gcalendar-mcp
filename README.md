@@ -1,3 +1,5 @@
+![CI](https://github.com/sandeepmallareddy/gcalendar-mcp/actions/workflows/ci.yml/badge.svg)
+
 # Google Calendar MCP Server
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that gives Claude full access to your Google Calendar. Create events, check availability, manage calendars, and more - all through natural conversation.
